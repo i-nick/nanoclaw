@@ -56,7 +56,7 @@ Confirm which tool families are available to you:
 
 ```bash
 which agent-browser 2>/dev/null && echo "agent-browser: available" || echo "agent-browser: not installed"
-node --version 2>/dev/null
+bun --version 2>/dev/null
 claude --version 2>/dev/null
 ```
 
@@ -92,7 +92,7 @@ Present as a clean, readable message:
 
 *Container:*
 • agent-browser: ✓ / not installed
-• Node: vXX.X.X
+• Bun: vX.X.X
 • Claude Code: vX.X.X
 
 *Scheduled Tasks:*

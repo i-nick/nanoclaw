@@ -76,11 +76,11 @@ A personal Claude assistant with multi-channel support, persistent memory per co
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Channel System | Channel registry (`src/channels/registry.ts`) | Channels self-register at startup |
-| Message Storage | SQLite (better-sqlite3) | Store messages for polling |
+| Message Storage | SQLite (Bun runtime) | Store messages for polling |
 | Container Runtime | Containers (Linux VMs) | Isolated environments for agent execution |
 | Agent | @anthropic-ai/claude-agent-sdk (0.2.29) | Run Claude with tools and MCP servers |
 | Browser Automation | agent-browser + Chromium | Web interaction and screenshots |
-| Runtime | Node.js 20+ | Host process for routing and scheduling |
+| Runtime | Bun 1.3+ | Host process for routing and scheduling |
 
 ---
 
@@ -404,7 +404,7 @@ Only the authentication variables (`CLAUDE_CODE_OAUTH_TOKEN` and `ANTHROPIC_API_
 Set the `ASSISTANT_NAME` environment variable:
 
 ```bash
-ASSISTANT_NAME=Bot npm start
+ASSISTANT_NAME=Bot bun run start
 ```
 
 Or edit the default in `src/config.ts`. This changes:
@@ -415,7 +415,7 @@ Or edit the default in `src/config.ts`. This changes:
 
 Files with `{{PLACEHOLDER}}` values need to be configured:
 - `{{PROJECT_ROOT}}` - Absolute path to your nanoclaw installation
-- `{{NODE_PATH}}` - Path to node binary (detected via `which node`)
+- `{{BUN_PATH}}` - Path to bun binary (detected via `which bun`)
 - `{{HOME}}` - User's home directory
 
 ---
@@ -664,7 +664,7 @@ When NanoClaw starts, it:
     <string>com.nanoclaw</string>
     <key>ProgramArguments</key>
     <array>
-        <string>{{NODE_PATH}}</string>
+        <string>{{BUN_PATH}}</string>
         <string>{{PROJECT_ROOT}}/dist/index.js</string>
     </array>
     <key>WorkingDirectory</key>
@@ -676,7 +676,7 @@ When NanoClaw starts, it:
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>{{HOME}}/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/opt/homebrew/bin:{{HOME}}/.bun/bin:{{HOME}}/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>HOME</key>
         <string>{{HOME}}</string>
         <key>ASSISTANT_NAME</key>
@@ -779,7 +779,7 @@ chmod 700 groups/
 
 Run manually for verbose output:
 ```bash
-npm run dev
+bun run dev
 # or
-node dist/index.js
+bun dist/index.js
 ```

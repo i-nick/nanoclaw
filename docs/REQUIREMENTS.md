@@ -176,7 +176,7 @@ A personal Claude assistant accessible via WhatsApp, with minimal custom code.
 
 ### Deployment
 - Runs on local Mac via launchd
-- Single Node.js process handles everything
+- Single Bun process handles everything
 
 ---
 

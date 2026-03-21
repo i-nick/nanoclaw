@@ -98,11 +98,11 @@ export function getServiceManager(): ServiceManager {
   return 'none';
 }
 
-export function getNodePath(): string {
+export function getBunPath(): string {
   try {
-    return execSync('command -v node', { encoding: 'utf-8' }).trim();
+    return execSync('command -v bun', { encoding: 'utf-8' }).trim();
   } catch {
-    return process.execPath;
+    return 'bun';
   }
 }
 
@@ -115,17 +115,17 @@ export function commandExists(name: string): boolean {
   }
 }
 
-export function getNodeVersion(): string | null {
+export function getBunVersion(): string | null {
   try {
-    const version = execSync('node --version', { encoding: 'utf-8' }).trim();
+    const version = execSync('bun --version', { encoding: 'utf-8' }).trim();
     return version.replace(/^v/, '');
   } catch {
     return null;
   }
 }
 
-export function getNodeMajorVersion(): number | null {
-  const version = getNodeVersion();
+export function getBunMajorVersion(): number | null {
+  const version = getBunVersion();
   if (!version) return null;
   const major = parseInt(version.split('.')[0], 10);
   return isNaN(major) ? null : major;

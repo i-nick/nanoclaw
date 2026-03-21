@@ -1,7 +1,7 @@
 # NanoClaw Agent Container
 # Runs Claude Agent SDK in isolated Linux VM with browser automation
 
-FROM node:22-slim
+FROM oven/bun:1.3.11-slim
 
 # Install system dependencies for Chromium
 RUN apt-get update && apt-get install -y \
@@ -29,42 +29,33 @@ RUN apt-get update && apt-get install -y \
 # Set Chromium path for agent-browser
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
-
-# Install agent-browser and claude-code globally
-RUN npm install -g agent-browser @anthropic-ai/claude-code
-
-# Create app directory
-WORKDIR /app
-
-# Copy package files first for better caching
-COPY agent-runner/package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy source code
-COPY agent-runner/ ./
-
-# Build TypeScript
-RUN npm run build
-
-# Create workspace directories
-RUN mkdir -p /workspace/group /workspace/global /workspace/extra /workspace/ipc/messages /workspace/ipc/tasks /workspace/ipc/input
-
-# Create entrypoint script
-# Container input (prompt, group info) is passed via stdin JSON.
-# Credentials are injected by the host's credential proxy — never passed here.
-# Follow-up messages arrive via IPC files in /workspace/ipc/input/
-RUN printf '#!/bin/bash\nset -e\ncd /app && npx tsc --outDir /tmp/dist 2>&1 >&2\nln -s /app/node_modules /tmp/dist/node_modules\nchmod -R a-w /tmp/dist\ncat > /tmp/input.json\nnode /tmp/dist/index.js < /tmp/input.json\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+ENV PATH=/home/node/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Set ownership to node user (non-root) for writable directories
-RUN chown -R node:node /workspace && chmod 777 /home/node
+RUN useradd -m -u 1000 -s /bin/bash node \
+    && mkdir -p /workspace/group /workspace/global /workspace/extra /workspace/ipc/messages /workspace/ipc/tasks /workspace/ipc/input \
+    && chown -R node:node /workspace /home/node
 
-# Switch to non-root user (required for --dangerously-skip-permissions)
+# Create app directory and copy package files first for better caching
+WORKDIR /app
+RUN mkdir -p /app && chown -R node:node /app
+COPY --chown=node:node agent-runner/package.json agent-runner/bun.lock ./
+
+# Install agent-browser and claude-code globally with Bun
 USER node
+RUN bun add -g agent-browser @anthropic-ai/claude-code
+
+# Install dependencies
+RUN bun install --frozen-lockfile
+
+# Copy source code
+COPY --chown=node:node agent-runner/ ./
+
+# Build TypeScript with Bun tooling
+RUN bun run build
 
 # Set working directory to group workspace
 WORKDIR /workspace/group
 
 # Entry point reads JSON from stdin, outputs JSON to stdout
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["bun", "/app/dist/index.js"]

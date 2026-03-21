@@ -8,8 +8,8 @@ import {
   hasSystemd,
   getServiceManager,
   commandExists,
-  getNodeVersion,
-  getNodeMajorVersion,
+  getBunVersion,
+  getBunMajorVersion,
 } from './platform.js';
 
 // --- getPlatform ---
@@ -90,8 +90,8 @@ describe('getServiceManager', () => {
 // --- commandExists ---
 
 describe('commandExists', () => {
-  it('returns true for node', () => {
-    expect(commandExists('node')).toBe(true);
+  it('returns true for bun', () => {
+    expect(commandExists('bun')).toBe(true);
   });
 
   it('returns false for nonexistent command', () => {
@@ -99,22 +99,22 @@ describe('commandExists', () => {
   });
 });
 
-// --- getNodeVersion ---
+// --- getBunVersion ---
 
-describe('getNodeVersion', () => {
+describe('getBunVersion', () => {
   it('returns a version string', () => {
-    const version = getNodeVersion();
+    const version = getBunVersion();
     expect(version).not.toBeNull();
     expect(version).toMatch(/^\d+\.\d+\.\d+/);
   });
 });
 
-// --- getNodeMajorVersion ---
+// --- getBunMajorVersion ---
 
-describe('getNodeMajorVersion', () => {
-  it('returns at least 20', () => {
-    const major = getNodeMajorVersion();
+describe('getBunMajorVersion', () => {
+  it('returns at least 1', () => {
+    const major = getBunMajorVersion();
     expect(major).not.toBeNull();
-    expect(major!).toBeGreaterThanOrEqual(20);
+    expect(major!).toBeGreaterThanOrEqual(1);
   });
 });

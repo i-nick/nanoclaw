@@ -38,7 +38,7 @@ Before any operation, all affected files are copied to `.nanoclaw/backup/`. On s
 Source code where skills weave in logic. Merged via `git merge-file` against the shared base. Skills carry full modified files.
 
 ### Structured Data (Deterministic Operations)
-Files like `package.json`, `docker-compose.yml`, `.env.example`. Skills declare requirements in the manifest; the system applies them programmatically. Multiple skills' declarations are batched — dependencies merged, `package.json` written once, `npm install` run once.
+Files like `package.json`, `docker-compose.yml`, `.env.example`. Skills declare requirements in the manifest; the system applies them programmatically. Multiple skills' declarations are batched — dependencies merged, `package.json` written once, `bun install` run once.
 
 ```yaml
 structured:

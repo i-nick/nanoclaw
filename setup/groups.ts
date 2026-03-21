@@ -4,14 +4,13 @@
  * Other channels discover group names at runtime — this step auto-skips for them.
  * Replaces 05-sync-groups.sh + 05b-list-groups.sh
  */
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-import Database from 'better-sqlite3';
-
 import { STORE_DIR } from '../src/config.js';
 import { logger } from '../src/logger.js';
+import Database from '../src/sqlite.js';
 import { emitStatus } from './status.js';
 
 function parseArgs(args: string[]): { list: boolean; limit: number } {
@@ -87,7 +86,7 @@ async function syncGroups(projectRoot: string): Promise<void> {
   logger.info('Building TypeScript');
   let buildOk = false;
   try {
-    execSync('npm run build', {
+    execSync('bun run build', {
       cwd: projectRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -106,7 +105,7 @@ async function syncGroups(projectRoot: string): Promise<void> {
     process.exit(1);
   }
 
-  // Run sync script via a temp file to avoid shell escaping issues with node -e
+  // Run sync script via a temp file to avoid shell escaping issues with inline eval
   logger.info('Fetching group metadata');
   let syncOk = false;
   try {
@@ -115,7 +114,7 @@ import makeWASocket, { useMultiFileAuthState, makeCacheableSignalKeyStore, Brows
 import pino from 'pino';
 import path from 'path';
 import fs from 'fs';
-import Database from 'better-sqlite3';
+import Database from './src/sqlite.ts';
 
 const logger = pino({ level: 'silent' });
 const authDir = path.join('store', 'auth');
@@ -182,7 +181,7 @@ sock.ev.on('connection.update', async (update) => {
     const tmpScript = path.join(projectRoot, '.tmp-group-sync.mjs');
     fs.writeFileSync(tmpScript, syncScript, 'utf-8');
     try {
-      const output = execSync(`node ${tmpScript}`, {
+      const output = execFileSync('bun', [tmpScript], {
         cwd: projectRoot,
         encoding: 'utf-8',
         timeout: 45000,
@@ -197,7 +196,7 @@ sock.ev.on('connection.update', async (update) => {
     logger.error({ err }, 'Sync failed');
   }
 
-  // Count groups in DB using better-sqlite3 (no sqlite3 CLI)
+  // Count groups in DB without relying on the sqlite3 CLI.
   let groupsInDb = 0;
   const dbPath = path.join(STORE_DIR, 'messages.db');
   if (fs.existsSync(dbPath)) {

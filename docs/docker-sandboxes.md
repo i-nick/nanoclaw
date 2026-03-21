@@ -7,7 +7,7 @@ This guide walks through setting up NanoClaw inside a [Docker Sandbox](https://d
 ```
 Host (macOS / Windows WSL)
 └── Docker Sandbox (micro VM with isolated kernel)
-    ├── NanoClaw process (Node.js)
+    ├── NanoClaw process (Bun)
     │   ├── Channel adapters (WhatsApp, Telegram, etc.)
     │   └── Container spawner → nested Docker daemon
     └── Docker-in-Docker
@@ -67,7 +67,7 @@ Inside the sandbox:
 
 ```bash
 sudo apt-get update && sudo apt-get install -y build-essential python3
-npm config set strict-ssl false
+# Bun install uses the proxy / CA configuration you provide; no package-manager-specific strict-ssl flag is needed.
 ```
 
 ## Step 3: Clone and Install NanoClaw
@@ -87,8 +87,8 @@ mv nanoclaw "$WORKSPACE/nanoclaw"
 cd "$WORKSPACE/nanoclaw"
 
 # Install dependencies
-npm install
-npm install https-proxy-agent
+bun install
+bun add https-proxy-agent
 ```
 
 ## Step 4: Apply Proxy and Sandbox Patches
@@ -97,7 +97,7 @@ NanoClaw needs several patches to work inside a Docker Sandbox. These handle pro
 
 ### 4a. Dockerfile — proxy args for container image build
 
-`npm install` inside `docker build` fails with `SELF_SIGNED_CERT_IN_CHAIN` because the sandbox's MITM proxy presents its own certificate. Add proxy build args to `container/Dockerfile`:
+`bun install` inside `docker build` fails with `SELF_SIGNED_CERT_IN_CHAIN` because the sandbox's MITM proxy presents its own certificate. Add proxy build args to `container/Dockerfile`:
 
 Add these lines after the `FROM` line:
 
@@ -107,15 +107,9 @@ ARG http_proxy
 ARG https_proxy
 ARG no_proxy
 ARG NODE_EXTRA_CA_CERTS
-ARG npm_config_strict_ssl=true
-RUN npm config set strict-ssl ${npm_config_strict_ssl}
 ```
 
-And after the `RUN npm install` line:
-
-```dockerfile
-RUN npm config set strict-ssl true
-```
+No post-install SSL reset is needed when using Bun.
 
 ### 4b. Build script — forward proxy args
 
@@ -127,7 +121,6 @@ Add these `--build-arg` flags to the `docker build` command:
 --build-arg http_proxy="${http_proxy:-$HTTP_PROXY}" \
 --build-arg https_proxy="${https_proxy:-$HTTPS_PROXY}" \
 --build-arg no_proxy="${no_proxy:-$NO_PROXY}" \
---build-arg npm_config_strict_ssl=false \
 ```
 
 ### 4c. Container runner — proxy forwarding, CA cert mount, /dev/null fix
@@ -185,7 +178,7 @@ Patch `setup/container.ts` to pass the same proxy `--build-arg` flags as `build.
 ## Step 5: Build
 
 ```bash
-npm run build
+bun run build
 bash container/build.sh
 ```
 
@@ -195,10 +188,10 @@ bash container/build.sh
 
 ```bash
 # Apply the Telegram skill
-npx tsx scripts/apply-skill.ts .claude/skills/add-telegram
+bun scripts/apply-skill.ts .claude/skills/add-telegram
 
 # Rebuild after applying the skill
-npm run build
+bun run build
 
 # Configure .env
 cat > .env << EOF
@@ -209,7 +202,7 @@ EOF
 mkdir -p data/env && cp .env data/env/env
 
 # Register your chat
-npx tsx setup/index.ts --step register \
+bun setup/index.ts --step register \
   --jid "tg:<your-chat-id>" \
   --name "My Chat" \
   --trigger "@nanoclaw" \
@@ -235,10 +228,10 @@ Make sure you configured proxy bypass in [Step 1](#step-1-create-the-sandbox) fi
 
 ```bash
 # Apply the WhatsApp skill
-npx tsx scripts/apply-skill.ts .claude/skills/add-whatsapp
+bun scripts/apply-skill.ts .claude/skills/add-whatsapp
 
 # Rebuild
-npm run build
+bun run build
 
 # Configure .env
 cat > .env << EOF
@@ -250,13 +243,13 @@ mkdir -p data/env && cp .env data/env/env
 # Authenticate (choose one):
 
 # QR code — scan with WhatsApp camera:
-npx tsx src/whatsapp-auth.ts
+bun src/whatsapp-auth.ts
 
 # OR pairing code — enter code in WhatsApp > Linked Devices > Link with phone number:
-npx tsx src/whatsapp-auth.ts --pairing-code --phone <phone-number-no-plus>
+bun src/whatsapp-auth.ts --pairing-code --phone <phone-number-no-plus>
 
 # Register your chat (JID = your phone number + @s.whatsapp.net)
-npx tsx setup/index.ts --step register \
+bun setup/index.ts --step register \
   --jid "<phone>@s.whatsapp.net" \
   --name "My Chat" \
   --trigger "@nanoclaw" \
@@ -276,7 +269,7 @@ Apply both skills, patch both for proxy support, combine the `.env` variables, a
 ## Step 7: Run
 
 ```bash
-npm start
+bun run start
 ```
 
 You don't need to set `ANTHROPIC_API_KEY` manually. The sandbox proxy intercepts requests and replaces `proxy-managed` with your real key automatically.
@@ -291,7 +284,7 @@ All traffic from the sandbox routes through the host proxy at `host.docker.inter
 Agent container → DinD bridge → Sandbox VM → host.docker.internal:3128 → Host proxy → api.anthropic.com
 ```
 
-**"Bypass" does not mean traffic skips the proxy.** It means the proxy passes traffic through without MITM inspection. Node.js doesn't automatically use `HTTP_PROXY` env vars — you need explicit `HttpsProxyAgent` configuration in every HTTP/WebSocket client.
+**"Bypass" does not mean traffic skips the proxy.** It means the proxy passes traffic through without MITM inspection. Bun doesn't automatically use `HTTP_PROXY` env vars — you need explicit `HttpsProxyAgent` configuration in every HTTP/WebSocket client.
 
 ### Shared paths for DinD mounts
 
@@ -306,9 +299,9 @@ The workspace is mounted via virtiofs. Git's pack file handling can corrupt over
 
 ## Troubleshooting
 
-### npm install fails with SELF_SIGNED_CERT_IN_CHAIN
+### bun install fails with SELF_SIGNED_CERT_IN_CHAIN
 ```bash
-npm config set strict-ssl false
+# No Bun-specific strict-ssl flag is needed here.
 ```
 
 ### Container build fails with proxy errors
@@ -355,5 +348,5 @@ Run the auth command interactively inside the sandbox (not piped through `docker
 ```bash
 docker sandbox run shell-nanoclaw-workspace
 # Then inside:
-npx tsx src/whatsapp-auth.ts
+bun src/whatsapp-auth.ts
 ```

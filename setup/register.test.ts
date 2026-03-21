@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import Database from 'better-sqlite3';
+import Database from '../src/sqlite.js';
 
 /**
  * Tests for the register step.
@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
  * apostrophe in names, .env updates.
  */
 
-function createTestDb(): Database.Database {
+function createTestDb(): Database {
   const db = new Database(':memory:');
   db.exec(`CREATE TABLE IF NOT EXISTS registered_groups (
     jid TEXT PRIMARY KEY,
@@ -25,7 +25,7 @@ function createTestDb(): Database.Database {
 }
 
 describe('parameterized SQL registration', () => {
-  let db: Database.Database;
+  let db: Database;
 
   beforeEach(() => {
     db = createTestDb();

@@ -11,27 +11,25 @@ import path from 'path';
 
 import { logger } from '../src/logger.js';
 import {
+  getBunPath,
   getPlatform,
-  getNodePath,
   getServiceManager,
-  hasSystemd,
   isRoot,
-  isWSL,
 } from './platform.js';
 import { emitStatus } from './status.js';
 
 export async function run(_args: string[]): Promise<void> {
   const projectRoot = process.cwd();
   const platform = getPlatform();
-  const nodePath = getNodePath();
+  const bunPath = getBunPath();
   const homeDir = os.homedir();
 
-  logger.info({ platform, nodePath, projectRoot }, 'Setting up service');
+  logger.info({ platform, bunPath, projectRoot }, 'Setting up service');
 
   // Build first
   logger.info('Building TypeScript');
   try {
-    execSync('npm run build', {
+    execSync('bun run build', {
       cwd: projectRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -40,7 +38,7 @@ export async function run(_args: string[]): Promise<void> {
     logger.error('Build failed');
     emitStatus('SETUP_SERVICE', {
       SERVICE_TYPE: 'unknown',
-      NODE_PATH: nodePath,
+      BUN_PATH: bunPath,
       PROJECT_PATH: projectRoot,
       STATUS: 'failed',
       ERROR: 'build_failed',
@@ -52,13 +50,13 @@ export async function run(_args: string[]): Promise<void> {
   fs.mkdirSync(path.join(projectRoot, 'logs'), { recursive: true });
 
   if (platform === 'macos') {
-    setupLaunchd(projectRoot, nodePath, homeDir);
+    setupLaunchd(projectRoot, bunPath, homeDir);
   } else if (platform === 'linux') {
-    setupLinux(projectRoot, nodePath, homeDir);
+    setupLinux(projectRoot, bunPath, homeDir);
   } else {
     emitStatus('SETUP_SERVICE', {
       SERVICE_TYPE: 'unknown',
-      NODE_PATH: nodePath,
+      BUN_PATH: bunPath,
       PROJECT_PATH: projectRoot,
       STATUS: 'failed',
       ERROR: 'unsupported_platform',
@@ -70,7 +68,7 @@ export async function run(_args: string[]): Promise<void> {
 
 function setupLaunchd(
   projectRoot: string,
-  nodePath: string,
+  bunPath: string,
   homeDir: string,
 ): void {
   const plistPath = path.join(
@@ -89,7 +87,7 @@ function setupLaunchd(
     <string>com.nanoclaw</string>
     <key>ProgramArguments</key>
     <array>
-        <string>${nodePath}</string>
+        <string>${bunPath}</string>
         <string>${projectRoot}/dist/index.js</string>
     </array>
     <key>WorkingDirectory</key>
@@ -101,7 +99,7 @@ function setupLaunchd(
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:${homeDir}/.local/bin</string>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${homeDir}/.bun/bin:${homeDir}/.local/bin</string>
         <key>HOME</key>
         <string>${homeDir}</string>
     </dict>
@@ -135,7 +133,7 @@ function setupLaunchd(
 
   emitStatus('SETUP_SERVICE', {
     SERVICE_TYPE: 'launchd',
-    NODE_PATH: nodePath,
+    BUN_PATH: bunPath,
     PROJECT_PATH: projectRoot,
     PLIST_PATH: plistPath,
     SERVICE_LOADED: serviceLoaded,
@@ -146,21 +144,21 @@ function setupLaunchd(
 
 function setupLinux(
   projectRoot: string,
-  nodePath: string,
+  bunPath: string,
   homeDir: string,
 ): void {
   const serviceManager = getServiceManager();
 
   if (serviceManager === 'systemd') {
-    setupSystemd(projectRoot, nodePath, homeDir);
+    setupSystemd(projectRoot, bunPath, homeDir);
   } else {
     // WSL without systemd or other Linux without systemd
-    setupNohupFallback(projectRoot, nodePath, homeDir);
+    setupNohupFallback(projectRoot, bunPath, homeDir);
   }
 }
 
 /**
- * Kill any orphaned nanoclaw node processes left from previous runs or debugging.
+ * Kill any orphaned nanoclaw runtime processes left from previous runs or debugging.
  * Prevents connection conflicts when two instances connect to the same channel simultaneously.
  */
 function killOrphanedProcesses(projectRoot: string): void {
@@ -203,7 +201,7 @@ function checkDockerGroupStale(): boolean {
 
 function setupSystemd(
   projectRoot: string,
-  nodePath: string,
+  bunPath: string,
   homeDir: string,
 ): void {
   const runningAsRoot = isRoot();
@@ -224,7 +222,7 @@ function setupSystemd(
       logger.warn(
         'systemd user session not available — falling back to nohup wrapper',
       );
-      setupNohupFallback(projectRoot, nodePath, homeDir);
+      setupNohupFallback(projectRoot, bunPath, homeDir);
       return;
     }
     const unitDir = path.join(homeDir, '.config', 'systemd', 'user');
@@ -239,13 +237,13 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${nodePath} ${projectRoot}/dist/index.js
+ExecStart=${bunPath} ${projectRoot}/dist/index.js
 WorkingDirectory=${projectRoot}
 Restart=always
 RestartSec=5
 KillMode=process
 Environment=HOME=${homeDir}
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:${homeDir}/.local/bin
+Environment=PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${homeDir}/.bun/bin:${homeDir}/.local/bin
 StandardOutput=append:${projectRoot}/logs/nanoclaw.log
 StandardError=append:${projectRoot}/logs/nanoclaw.error.log
 
@@ -296,7 +294,7 @@ WantedBy=${runningAsRoot ? 'multi-user.target' : 'default.target'}`;
 
   emitStatus('SETUP_SERVICE', {
     SERVICE_TYPE: runningAsRoot ? 'systemd-system' : 'systemd-user',
-    NODE_PATH: nodePath,
+    BUN_PATH: bunPath,
     PROJECT_PATH: projectRoot,
     UNIT_PATH: unitPath,
     SERVICE_LOADED: serviceLoaded,
@@ -308,7 +306,7 @@ WantedBy=${runningAsRoot ? 'multi-user.target' : 'default.target'}`;
 
 function setupNohupFallback(
   projectRoot: string,
-  nodePath: string,
+  bunPath: string,
   homeDir: string,
 ): void {
   logger.warn('No systemd detected — generating nohup wrapper script');
@@ -336,7 +334,7 @@ function setupNohupFallback(
     'fi',
     '',
     'echo "Starting NanoClaw..."',
-    `nohup ${JSON.stringify(nodePath)} ${JSON.stringify(projectRoot + '/dist/index.js')} \\`,
+    `nohup ${JSON.stringify(bunPath)} ${JSON.stringify(projectRoot + '/dist/index.js')} \\`,
     `  >> ${JSON.stringify(projectRoot + '/logs/nanoclaw.log')} \\`,
     `  2>> ${JSON.stringify(projectRoot + '/logs/nanoclaw.error.log')} &`,
     '',
@@ -351,7 +349,7 @@ function setupNohupFallback(
 
   emitStatus('SETUP_SERVICE', {
     SERVICE_TYPE: 'nohup',
-    NODE_PATH: nodePath,
+    BUN_PATH: bunPath,
     PROJECT_PATH: projectRoot,
     WRAPPER_PATH: wrapperPath,
     SERVICE_LOADED: false,

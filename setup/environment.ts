@@ -5,10 +5,9 @@
 import fs from 'fs';
 import path from 'path';
 
-import Database from 'better-sqlite3';
-
 import { STORE_DIR } from '../src/config.js';
 import { logger } from '../src/logger.js';
+import Database from '../src/sqlite.js';
 import { commandExists, getPlatform, isHeadless, isWSL } from './platform.js';
 import { emitStatus } from './status.js';
 
@@ -50,7 +49,7 @@ export async function run(_args: string[]): Promise<void> {
   if (fs.existsSync(path.join(projectRoot, 'data', 'registered_groups.json'))) {
     hasRegisteredGroups = true;
   } else {
-    // Check SQLite directly using better-sqlite3 (no sqlite3 CLI needed)
+    // Check SQLite directly without relying on the sqlite3 CLI.
     const dbPath = path.join(STORE_DIR, 'messages.db');
     if (fs.existsSync(dbPath)) {
       try {

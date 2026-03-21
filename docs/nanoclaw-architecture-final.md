@@ -50,7 +50,7 @@ Source code files where skills weave in logic — route handlers, middleware, bu
 
 Files like `package.json`, `docker-compose.yml`, `.env.example`, and generated configs are not code you merge — they're structured data you aggregate. Multiple skills adding npm dependencies to `package.json` shouldn't require a three-way text merge. Instead, skills declare their structured requirements in the manifest, and the system applies them programmatically.
 
-**Structured operations are implicit.** If a skill declares `npm_dependencies`, the system handles dependency installation automatically. There is no need for the skill author to add `npm install` to `post_apply`. When multiple skills are applied in sequence, the system batches structured operations: merge all dependency declarations first, write `package.json` once, run `npm install` once at the end.
+**Structured operations are implicit.** If a skill declares `npm_dependencies`, the system handles dependency installation automatically. There is no need for the skill author to add `bun install` to `post_apply`. When multiple skills are applied in sequence, the system batches structured operations: merge all dependency declarations first, write `package.json` once, run `bun install` once at the end.
 
 ```yaml
 # In manifest.yaml
@@ -187,7 +187,7 @@ conflicts: []              # Skills that cannot coexist without agent resolution
 depends: []                # Skills that must be applied first
 
 # Test command — runs after apply to validate the skill works
-test: "npx vitest run src/channels/whatsapp.test.ts"
+test: "bunx vitest run src/channels/whatsapp.test.ts"
 
 # --- Future fields (not yet implemented in v0.1) ---
 # author: nanoclaw-team
@@ -281,7 +281,7 @@ File operations run **before** code merges, because merges need to target the co
 6. Three-way merge modified code files
 7. Conflict resolution (rerere auto-resolve, or return with `backupPending: true`)
 8. Apply structured operations (npm deps, env vars, docker-compose — batched)
-9. Run `npm install` (once, if any structured npm_dependencies exist)
+9. Run `bun install` (once, if any structured npm_dependencies exist)
 10. Update state (record skill application, file hashes, structured outcomes)
 11. Run tests (if `manifest.test` defined; rollback state + backup on failure)
 12. Clean up (delete backup on success, release lock)
@@ -360,7 +360,7 @@ Collect all structured declarations (from this skill and any previously applied 
 - Merge npm dependencies into `package.json` (check for version conflicts)
 - Append env vars to `.env.example`
 - Merge docker-compose services (check for port/name collisions)
-- Run `npm install` **once** at the end
+- Run `bun install` **once** at the end
 - Record resolved outcomes in state
 
 ### Step 8: Post-Apply and Validate
@@ -520,7 +520,7 @@ applied_skills:
       env_additions:
         - TELEGRAM_BOT_TOKEN
         - TELEGRAM_ONLY
-      test: "npx vitest run src/channels/telegram.test.ts"
+      test: "bunx vitest run src/channels/telegram.test.ts"
 
   - name: discord
     version: 1.0.0
@@ -537,7 +537,7 @@ applied_skills:
       env_additions:
         - DISCORD_BOT_TOKEN
         - DISCORD_ONLY
-      test: "npx vitest run src/channels/discord.test.ts"
+      test: "bunx vitest run src/channels/discord.test.ts"
 
 custom_modifications:
   - description: "Added custom logging middleware"
@@ -917,7 +917,7 @@ for skill in state.applied_skills:
 # 4. Apply all structured operations (batched)
 collect_all_structured_ops(state.applied_skills)
 merge_npm_dependencies → write package.json once
-npm install once
+bun install once
 merge_env_additions → write .env.example once
 merge_compose_services → write docker-compose.yml once
 

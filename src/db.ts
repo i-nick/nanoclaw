@@ -1,10 +1,10 @@
-import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
 import { ASSISTANT_NAME, DATA_DIR, STORE_DIR } from './config.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
+import Database from './sqlite.js';
 import {
   NewMessage,
   RegisteredGroup,
@@ -12,9 +12,9 @@ import {
   TaskRunLog,
 } from './types.js';
 
-let db: Database.Database;
+let db: Database;
 
-function createSchema(database: Database.Database): void {
+function createSchema(database: Database): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS chats (
       jid TEXT PRIMARY KEY,
